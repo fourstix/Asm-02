@@ -448,18 +448,10 @@ void addLabel(char *label, word value)
     }
   }
   numLabels++;
-  if (numLabels == 1)
-  {
-    labels = (char **)malloc(sizeof(char *));
-    labelValues = (word *)malloc(sizeof(word));
-    labelProcs = (char **)malloc(sizeof(char *));
-  }
-  else
-  {
-    labels = (char **)realloc(labels, sizeof(char *) * numLabels);
-    labelValues = (word *)realloc(labelValues, sizeof(word) * numLabels);
-    labelProcs = (char **)realloc(labelProcs, sizeof(char *) * numLabels);
-  }
+  labels = (char **)realloc(labels, sizeof(char *) * numLabels);
+  labelValues = (word *)realloc(labelValues, sizeof(word) * numLabels);
+  labelProcs = (char **)realloc(labelProcs, sizeof(char *) * numLabels);
+
   labels[numLabels - 1] = (char *)malloc(strlen(label) + 1);
   strcpy(labels[numLabels - 1], label);
   labelProcs[numLabels - 1] = (char *)malloc(strlen(module) + 1);
@@ -678,7 +670,7 @@ void output(byte value)
     {
       if (suppression == 0)
       {
-        if (checkOverwrite && !mmapCheck(address))
+        if (checkOverwrite && compMode != 'P' && !mmapCheck(address))
         {
           doError(ERR_MEMORY_OVERLAP, address);
         }
@@ -1445,18 +1437,10 @@ void compileOp(char *line)
     exit(1);
   }
   numOps++;
-  if (numOps == 1)
-  {
-    ops = (char **)malloc(sizeof(char *));
-    arglist = (char **)malloc(sizeof(char *));
-    translation = (char **)malloc(sizeof(char *));
-  }
-  else
-  {
-    ops = (char **)realloc(ops, sizeof(char *) * numOps);
-    arglist = (char **)realloc(arglist, sizeof(char *) * numOps);
-    translation = (char **)realloc(translation, sizeof(char *) * numOps);
-  }
+  ops = (char **)realloc(ops, sizeof(char *) * numOps);
+  arglist = (char **)realloc(arglist, sizeof(char *) * numOps);
+  translation = (char **)realloc(translation, sizeof(char *) * numOps);
+
   ops[numOps - 1] = (char *)malloc(strlen(op) + 1);
   strcpy(ops[numOps - 1], op);
   arglist[numOps - 1] = (char *)malloc(strlen(args) + 1);
@@ -1479,16 +1463,9 @@ void addDefine(char *define, char *value)
       return;
     }
   numDefines++;
-  if (numDefines == 1)
-  {
-    defines = (char **)malloc(sizeof(char *));
-    defineValues = (char **)malloc(sizeof(char *));
-  }
-  else
-  {
-    defines = (char **)realloc(defines, sizeof(char *) * numDefines);
-    defineValues = (char **)realloc(defineValues, sizeof(char *) * numDefines);
-  }
+  defines = (char **)realloc(defines, sizeof(char *) * numDefines);
+  defineValues = (char **)realloc(defineValues, sizeof(char *) * numDefines);
+
   defines[numDefines - 1] = (char *)malloc(strlen(define) + 1);
   strcpy(defines[numDefines - 1], define);
   defineValues[numDefines - 1] = (char *)malloc(strlen(value) + 1);
@@ -1527,7 +1504,9 @@ void delDefine(char *define)
   if (numDefines == 0)
   {
     free(defines);
+    defines = NULL;
     free(defineValues);
+    defineValues = NULL;
   }
   else
   {
@@ -2466,15 +2445,13 @@ void Asm(char *line)
           addLabel(args, 0);
           i = findLabel(args);
           numExternals++;
-          if (numExternals == 1)
-            externals = (int *)malloc(sizeof(int));
-          else
-            externals = (int *)realloc(externals, sizeof(int) * numExternals);
+          externals = (int *)realloc(externals, sizeof(int) * numExternals);
           externals[numExternals - 1] = i;
         }
         break;
       case OT_PROC:
         inProc = -1;
+        setCompMode();
         strcpy(module, args);
         if (passNumber == 2 && outCount > 0)
         {
@@ -2528,6 +2505,7 @@ void Asm(char *line)
           write(outFile, buffer, strlen(buffer));
         }
         inProc = 0;
+        setCompMode();
         strcpy(module, "*");
         break;
       case OT_VER:
@@ -2735,17 +2713,8 @@ void processOption(int c, int index, char *option)
       strcpy(def, option);
       equals = strchr(def, '=');
       numClDefines++;
-      if (numClDefines == 1)
-      {
-        clDefines = (char **)malloc(sizeof(char *));
-        clDefineValues = (char **)malloc(sizeof(char *));
-      }
-      else
-      {
-        clDefines = (char **)realloc(clDefines, sizeof(char *) * numClDefines);
-        clDefineValues =
-            (char **)realloc(clDefineValues, sizeof(char *) * numClDefines);
-      }
+      clDefines = (char **)realloc(clDefines, sizeof(char *) * numClDefines);
+      clDefineValues = (char **)realloc(clDefineValues, sizeof(char *) * numClDefines);
       if (equals != NULL)
       {
         *equals = 0;
@@ -2766,10 +2735,7 @@ void processOption(int c, int index, char *option)
     break;
   case 'I':
       numIncPath++;
-      if (numIncPath == 1)
-        incPath = (char **)malloc(sizeof(char *));
-      else
-        incPath = (char **)realloc(incPath, sizeof(char *) * numIncPath);
+      incPath = (char **)realloc(incPath, sizeof(char *) * numIncPath);
       incPath[numIncPath - 1] = (char *)malloc(strlen(option) + 1);
       strcpy(incPath[numIncPath - 1], option);
       return;
@@ -2896,7 +2862,9 @@ int pass(int p, char* srcFile)
   if (numDefines > 0)
   {
     free(defines);
+    defines = NULL;
     free(defineValues);
+    defineValues = NULL;
   }
   return 0;
 }
@@ -2912,11 +2880,20 @@ void clear()
       free(labelProcs[i]);
     }
     free(labels);
+    labels = NULL;
     free(labelValues);
+    labelValues = NULL;
     free(labelProcs);
+    labelProcs = NULL;
+
+    numLabels = 0;
   }
-  numLabels = 0;
-  numExternals = 0;
+  if (numExternals != 0)
+  {
+    free(externals);
+    externals = NULL;
+    numExternals = 0;
+  }
   execAddr = 0xffff;
   strcpy(module, " ");
   addLabel("r0", 0);
@@ -2949,8 +2926,13 @@ void assembleFile(char *sourceFile)
   char tmp[1024];
   FILE *buildFile;
   inProc = 0;
+  defines = NULL;
+  defineValues = NULL;
   numDefines = 0;
   errors = 0;
+  ops = NULL;
+  arglist = NULL;
+  translation = NULL;
   numOps = 0;
   passNumber = 1;
   codeGenerated = 0;
@@ -2996,7 +2978,16 @@ void assembleFile(char *sourceFile)
     addDefine(clDefines[i], clDefineValues[i]);
 
   i = pass(1, sourceFile);
-  numDefines = 0;
+
+  if (numDefines != 0)
+  {
+    free(defines);
+    defines = NULL;
+    free(defineValues);
+    defineValues = NULL;
+    numDefines = 0;
+  }
+
   if (i == 0 && errors == 0)
   {
     for (i = 0; i < numClDefines; i++)
@@ -3078,8 +3069,13 @@ int main(int argc, char **argv)
   useExtended = 0;
   sourceFiles = NULL;
   numSourceFiles = 0;
+  clDefines = NULL;
+  clDefineValues = NULL;
+  numClDefines = 0;
   numLabels = 0;
+  externals = NULL;
   numExternals = 0;
+  incPath = NULL;
   numIncPath = 0;
   strcpy(lineEnding, "\n");
   tv = time(NULL);
@@ -3104,7 +3100,7 @@ int main(int argc, char **argv)
   {
     numSourceFiles++;
     sourceFiles = (char **)realloc(sourceFiles, sizeof(char *) * numSourceFiles);
-    sourceFiles[numSourceFiles - 1] = (char *)malloc(strlen(argv[optind]));
+    sourceFiles[numSourceFiles - 1] = (char *)malloc(strlen(argv[optind])+1);
     strcpy(sourceFiles[numSourceFiles - 1], argv[optind++]);
   }
 
