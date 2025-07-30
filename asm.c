@@ -2885,7 +2885,7 @@ void help()
           "-max          - Set 1802/MAX memory model\n"
           "-ram=low-high - Set explicit RAM region\n"
           "-rom=how-high - Set explicit ROM region\n"
-          "-C            - Treat labels as case sensitive\n"
+          "-C, -case     - Treat labels as case sensitive\n"
           "-v,-version   - Display version information\n"
           "-h,-help      - This message\n");
 }
@@ -2925,6 +2925,7 @@ struct option long_opts[] =
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
   { "C", no_argument, &labelCase, -1 },
+  { "case", no_argument, &labelCase, -1 },
   { 0, 0, 0, 0 }
 };
 
