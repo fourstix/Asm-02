@@ -232,5 +232,5 @@ LINK FILE   *sourceFile[100];
 LINK int     lineNumber[100];
 LINK int     fileNumber;
 LINK bool    showIncPath;
-
+LINK int     labelCase;
 #endif
