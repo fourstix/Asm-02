@@ -492,9 +492,9 @@ void addLabel(char *label, word value)
     return;
   for (i = 0; i < numLabels; i++)
   {
-    if (strcasecmp(label, labels[i]) == 0 &&
+    if (labelcmp(label, labels[i]) == 0 &&
           (strcmp(labelProcs[i], " ") == 0 ||
-           strcasecmp(module, labelProcs[i]) == 0))
+           labelcmp(module, labelProcs[i]) == 0))
     {
       doError(ERR_DUPLICATE_LABEL, label);
       return;
@@ -518,24 +518,24 @@ word getLabel(char *label)
   if (passNumber == 1)
   {
     for (i = 0; i < numLabels; i++)
-      if (strcasecmp(label, labels[i]) == 0 &&
-          strcasecmp(module, labelProcs[i]) == 0)
+      if (labelcmp(label, labels[i]) == 0 &&
+          labelcmp(module, labelProcs[i]) == 0)
         return labelValues[i];
     for (i = 0; i < numLabels; i++)
-      if (strcasecmp(label, labels[i]) == 0 &&
-          (strcasecmp("*", labelProcs[i]) == 0 ||
-           strcasecmp(" ", labelProcs[i]) == 0))
+      if (labelcmp(label, labels[i]) == 0 &&
+          (strcmp("*", labelProcs[i]) == 0 ||
+           strcmp(" ", labelProcs[i]) == 0))
         return labelValues[i];
     return 0;
   }
   for (i = 0; i < numLabels; i++)
-    if (strcasecmp(label, labels[i]) == 0 &&
-        strcasecmp(module, labelProcs[i]) == 0)
+    if (labelcmp(label, labels[i]) == 0 &&
+        labelcmp(module, labelProcs[i]) == 0)
       return labelValues[i];
   for (i = 0; i < numLabels; i++)
-    if (strcasecmp(label, labels[i]) == 0 &&
-        (strcasecmp(" ", labelProcs[i]) == 0 ||
-         strcasecmp("*", labelProcs[i]) == 0))
+    if (labelcmp(label, labels[i]) == 0 &&
+        (strcmp(" ", labelProcs[i]) == 0 ||
+         strcmp("*", labelProcs[i]) == 0))
       return labelValues[i];
   return 0;
 }
@@ -546,30 +546,30 @@ int findLabel(char *label)
   if (passNumber == 1)
   {
     for (i = 0; i < numLabels; i++)
-      if (strcasecmp(label, labels[i]) == 0 &&
-          strcasecmp(module, labelProcs[i]) == 0)
+      if (labelcmp(label, labels[i]) == 0 &&
+          labelcmp(module, labelProcs[i]) == 0)
       {
         return i;
       }
     for (i = 0; i < numLabels; i++)
-      if (strcasecmp(label, labels[i]) == 0 &&
-          (strcasecmp(" ", labelProcs[i]) == 0 ||
-           strcasecmp("*", labelProcs[i]) == 0))
+      if (labelcmp(label, labels[i]) == 0 &&
+          (strcmp(" ", labelProcs[i]) == 0 ||
+           strcmp("*", labelProcs[i]) == 0))
       {
         return i;
       }
     return 0;
   }
   for (i = 0; i < numLabels; i++)
-    if (strcasecmp(label, labels[i]) == 0 &&
-        strcasecmp(module, labelProcs[i]) == 0)
+    if (labelcmp(label, labels[i]) == 0 &&
+        labelcmp(module, labelProcs[i]) == 0)
     {
       return i;
     }
   for (i = 0; i < numLabels; i++)
-    if (strcasecmp(label, labels[i]) == 0 &&
-        (strcasecmp(" ", labelProcs[i]) == 0 ||
-         strcasecmp("*", labelProcs[i]) == 0))
+    if (labelcmp(label, labels[i]) == 0 &&
+        (strcmp(" ", labelProcs[i]) == 0 ||
+         strcmp("*", labelProcs[i]) == 0))
     {
       return i;
     }
@@ -585,7 +585,7 @@ void setLabel(char *label, word value)
   int i;
   for (i = 0; i < numLabels; i++)
   {
-    if (strcasecmp(label, labels[i]) == 0)
+    if (labelcmp(label, labels[i]) == 0)
     {
       labelValues[i] = value;
       return;
@@ -986,7 +986,7 @@ char *evaluate(char *pos, dword *result)
                 referenceType = 'W';
                 referenceLowOffset = labelValues[i] & 0xff;
               }
-              else if (inProc != 0 && strcasecmp(labelProcs[i], module) == 0)
+              else if (inProc != 0 && labelcmp(labelProcs[i], module) == 0)
               {
                 usedLocal = 1;
                 referenceType = 'W';
@@ -2885,6 +2885,7 @@ void help()
           "-max          - Set 1802/MAX memory model\n"
           "-ram=low-high - Set explicit RAM region\n"
           "-rom=how-high - Set explicit ROM region\n"
+          "-C, -case     - Treat labels as case sensitive\n"
           "-v,-version   - Display version information\n"
           "-h,-help      - This message\n");
 }
@@ -2923,6 +2924,8 @@ struct option long_opts[] =
   { "rom", required_argument, 0, 'M' },
   { "help", no_argument, 0, 'h' },
   { "version", no_argument, 0, 'v' },
+  { "C", no_argument, &labelCase, -1 },
+  { "case", no_argument, &labelCase, -1 },
   { 0, 0, 0, 0 }
 };
 
@@ -3284,6 +3287,17 @@ void assembleFile(char *sourceFile)
     exit(1);
 }
 
+/*
+ * Compare two labels with or without case sensitivity 
+ * depending on argument
+ */
+int labelcmp(char *s1, char *s2) {
+  if (labelCase)
+    return strcmp(s1, s2);
+  else 
+    return strcasecmp(s1, s2);
+}
+
 int main(int argc, char **argv)
 {
   int i;
@@ -3323,6 +3337,8 @@ int main(int argc, char **argv)
   buildMinute = dt.tm_min;
   buildSecond = dt.tm_sec;
   i = 1;
+  //grw - added labelCase variable
+  labelCase = 0;
 
   printf("Asm/02 v1.10\n");
 
