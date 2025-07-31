@@ -65,7 +65,7 @@ Command line switches:
   -lf           - Use LF as line ending
   -crlf         - Use CRLF as line ending
   -lfcr         - Use LFCR as line ending
-  -C            - Treat labels as case sensitive
+  -C, -case     - Treat labels as case sensitive
   -help, -h     - List of options
 
 Evaluator variables:
