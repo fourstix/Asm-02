@@ -38,17 +38,18 @@ There are no compiler options or settings that are strictly required.
 
 The assembler can be built with Microsoft Visual Studio without using its IDE.
 Any recent version of the free "Community Edition" of Visual Studio should work.
-Start a "Developer Command Prompt" from the Windows Start Menu and change the current directory to the one containing the source code.
-This command is sufficient to build all the sources:
+Start a "Developer Command Prompt" from the Windows Start Menu and change the current directory to the one containing the source code. 
 
-```shell
-cl *.c /Fe:asm02.exe
+An nmake file is provided to build all the sources:
+
+```
+nmake -f MakeAsm
 ```
 
 Of course the Visual Studio IDE can be used to easily create a Solution/Project to build the "C" files in this repository.
 
 ## Special Features and Usage Notes
-The assembler can produce binary, Intel hex, or a relocatable format for use with [Link/02](https://github.com/arhefner/Link-02).
+The assembler can produce binary, Intel hex, or a relocatable format for use with [Link/02](https://github.com/fourstix/Link-02).
 It offers a preprocessor and conditional compilation. There is also a mechanism for defining new instructions
 such as those found in opcodes.def.
 
@@ -136,6 +137,7 @@ $F7
 * -crlf         - Use CRLF as line ending
 * -lfcr         - Use LFCR as line ending
 * -version, -v  - Display the version number
+* -C, -case     - Treat labels as case sensitive
 * -help, -h     - List of options
 
 ## Evaluator variables
