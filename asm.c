@@ -239,6 +239,17 @@ struct tm *localtime_r(const time_t *timer, struct tm *buf)
   return buf;
 }
 
+/*
+ * Compare two labels with or without case sensitivity
+ * depending on argument
+ */
+int labelcmp(char *s1, char *s2) {
+  if (labelCase)
+    return strcmp(s1, s2);
+  else
+    return strcasecmp(s1, s2);
+}
+
 void list(char *message)
 {
   if (passNumber != 2)
@@ -2042,7 +2053,7 @@ void Asm(char *line)
   int i, j;
   byte b;
   byte valid;
-  char lst[1024];
+  char lst[1500];
   usedReference = -1;
   orig = sourceLine;
   line = trim(line);
@@ -3287,17 +3298,6 @@ void assembleFile(char *sourceFile)
     exit(1);
 }
 
-/*
- * Compare two labels with or without case sensitivity 
- * depending on argument
- */
-int labelcmp(char *s1, char *s2) {
-  if (labelCase)
-    return strcmp(s1, s2);
-  else 
-    return strcasecmp(s1, s2);
-}
-
 int main(int argc, char **argv)
 {
   int i;
@@ -3340,7 +3340,7 @@ int main(int argc, char **argv)
   //grw - added labelCase variable
   labelCase = 0;
 
-  printf("Asm/02 v1.10\n");
+  printf("Asm/02 v1.11\n");
 
   while (1)
   {
