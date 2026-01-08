@@ -12,6 +12,8 @@
 #include <time.h>
 #include "header.h"
 
+#define NAME_AND_VERSION  "Asm/02 v1.12"
+
 typedef struct
 {
   char opcode[8];
@@ -2883,6 +2885,7 @@ void help()
           "-Ipath        - Add path to search list for #include files\n"
           "-l,-showlist  - Show assembly list\n"
           "-L,-list      - Create .lst file\n"
+          "-q,-quiet     - Show minimal output\n"
           "-s,-symbols   - Show symbols\n"
           "-m,-map       - Show memory map in binary or intel mode\n"
           "-melf         - Set Micro/Elf memory model\n"
@@ -2937,6 +2940,8 @@ struct option long_opts[] =
   { "version", no_argument, 0, 'v' },
   { "C", no_argument, &labelCase, -1 },
   { "case", no_argument, &labelCase, -1 },
+  { "q", no_argument, &quiet, -1},
+  { "quiet", no_argument, &quiet, -1},
   { 0, 0, 0, 0 }
 };
 
@@ -2948,10 +2953,12 @@ void processOption(int c, int index, char *option)
   switch (c)
   {
   case 'h':
+    printf("%s\n", NAME_AND_VERSION);
     help();
     exit(1);
     break;
   case 'v':
+    printf("%s\n", NAME_AND_VERSION);
     printf("by Michael H. Riley\n");
     printf("with contributions by:\n");
     printf("  Tony Hefner\n");
@@ -3268,12 +3275,15 @@ void assembleFile(char *sourceFile)
     fprintf(stderr, "%s\n", "Errors during pass 1, aborting pass 2");
   }
 
-  printf("\n");
-  printf("Lines Assembled   : %d\n", linesAssembled);
-  printf("Code Generated    : %d\n", codeGenerated);
-  printf("Warnings          : %d\n", warnings);
-  printf("Errors            : %d\n", errors);
-  printf("\n");
+  if (!quiet)
+  {
+    printf("\n");
+    printf("Lines Assembled   : %d\n", linesAssembled);
+    printf("Code Generated    : %d\n", codeGenerated);
+    printf("Warnings          : %d\n", warnings);
+    printf("Errors            : %d\n", errors);
+    printf("\n");
+  }
 
   if (showSymbols)
   {
@@ -3327,6 +3337,7 @@ int main(int argc, char **argv)
   incPath = NULL;
   numIncPath = 0;
   showIncPath = false;
+  quiet = false;
   strcpy(lineEnding, "\n");
   tv = time(NULL);
   localtime_r(&tv, &dt);
@@ -3340,8 +3351,6 @@ int main(int argc, char **argv)
   //grw - added labelCase variable
   labelCase = 0;
 
-  printf("Asm/02 v1.11\n");
-
   while (1)
   {
     int index = -1, c;
@@ -3349,6 +3358,11 @@ int main(int argc, char **argv)
     if (c==-1)
       break;
     processOption(c, index, optarg);
+  }
+
+  if (!quiet)
+  {
+    printf("%s\n", NAME_AND_VERSION);
   }
 
   while (optind < argc)

@@ -50,6 +50,7 @@ Command line switches:
   -L, -list     - Create .lst file
   -warnover     - Treat overwriting an address (in binary or Intel mode) as a warning (normally an error)
   -s, -symbols  - Show symbols
+  -q, -quiet    - Show minimal output
   -melf         - Set Micro/Elf memory model
   -pev          - Set Pico/Elf memory model
   -pev2         - Set Pico/Elf V2 memory model

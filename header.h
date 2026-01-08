@@ -233,4 +233,5 @@ LINK int     lineNumber[100];
 LINK int     fileNumber;
 LINK bool    showIncPath;
 LINK int     labelCase;
+LINK int     quiet;
 #endif

@@ -49,6 +49,7 @@ Command line switches:
   -l, -showlist - Show assembly list
   -L, -list     - Create .lst file
   -warnover     - Treat overwriting an address (in binary or Intel mode) as a warning (normally an error)
+  -q, -quiet    - Show minimal output
   -s, -symbols  - Show symbols
   -melf         - Set Micro/Elf memory model
   -pev          - Set Pico/Elf memory model
