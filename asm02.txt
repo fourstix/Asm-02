@@ -44,7 +44,7 @@ Command line switches:
   -Dname        - Define name with value of "1"
   -Dname=value  - Define name with specified value
   -r, -reloc    - Output in RCS hex
-  -i, -intel     - Output in Intel hex
+  -i, -intel    - Output in Intel hex
   -Ipath        - Add path to search list for #include files
   -l, -showlist - Show assembly list
   -L, -list     - Create .lst file
