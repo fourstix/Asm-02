@@ -17,7 +17,7 @@
 #else
 #include <strings.h>
 #include <unistd.h>
-#include <sys/time.h>
+#include <time.h>
 #define O_BINARY 0
 #endif
 

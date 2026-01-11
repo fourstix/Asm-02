@@ -9,10 +9,9 @@
  */
 #define MAIN
 
-#include <time.h>
 #include "header.h"
 
-#define NAME_AND_VERSION  "Asm/02 v1.12"
+#define NAME_AND_VERSION  "Asm/02 v1.13"
 
 typedef struct
 {
@@ -2192,6 +2191,7 @@ void Asm(char *line)
         {
           writeOutput();
           outCount = 0;
+          outAddress = address;
         }
         sprintf(buffer, "%s\n", line);
         write(outFile, buffer, strlen(buffer));
