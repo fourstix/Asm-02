@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include "mmap.h"
+#include <time.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
@@ -17,7 +18,6 @@
 #else
 #include <strings.h>
 #include <unistd.h>
-#include <time.h>
 #define O_BINARY 0
 #endif
 
