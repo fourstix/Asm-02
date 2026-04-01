@@ -147,6 +147,12 @@ typedef struct Define
   bool visited;
 } Define;
 
+typedef enum Endian
+{
+  BIG_ENDIAN,
+  LITTLE_ENDIAN
+} Endian;
+
 LINK Define *defines;
 LINK int     numDefines;
 LINK char  **clDefines;
@@ -234,4 +240,6 @@ LINK int     fileNumber;
 LINK bool    showIncPath;
 LINK int     labelCase;
 LINK int     quiet;
+LINK Endian  endian;
+LINK Endian  defaultEndian;
 #endif
