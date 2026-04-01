@@ -11,7 +11,7 @@
 
 #include "header.h"
 
-#define NAME_AND_VERSION  "Asm/02 v1.13"
+#define NAME_AND_VERSION  "Asm/02 v1.2"
 
 typedef struct
 {
@@ -1334,15 +1334,33 @@ void processDb(char *args, char typ)
           fixupTypes[numFixups] = 'W';
           numFixups++;
         }
-        output(((num & 0x0000FF00) >> 8) & 0xff);
-        output(num & 0xff);
+        if (endian == BIG_ENDIAN)
+        {
+          output(((num & 0x0000FF00) >> 8) & 0xff);
+          output(num & 0xff);
+        }
+        else
+        {
+          output(num & 0xff);
+          output(((num & 0x0000FF00) >> 8) & 0xff);
+        }
       }
       else
       {
-        output(((num & 0xff000000) >> 24) & 0xff);
-        output(((num & 0x00ff0000) >> 16) & 0xff);
-        output(((num & 0x0000FF00) >> 8) & 0xff);
-        output(num & 0xff);
+        if (endian == BIG_ENDIAN)
+        {
+          output(((num & 0xff000000) >> 24) & 0xff);
+          output(((num & 0x00ff0000) >> 16) & 0xff);
+          output(((num & 0x0000FF00) >> 8) & 0xff);
+          output(num & 0xff);
+        }
+        else
+        {
+          output(num & 0xff);
+          output(((num & 0x0000FF00) >> 8) & 0xff);
+          output(((num & 0x00ff0000) >> 16) & 0xff);
+          output(((num & 0xff000000) >> 24) & 0xff);
+        }
       }
     }
     args = trim(args);
@@ -1371,10 +1389,20 @@ void processDf(char *args)
     buffer[pos] = 0;
     ftoi.f = atof(buffer);
     num = ftoi.i;
-    output(((num & 0xff000000) >> 24) & 0xff);
-    output(((num & 0x00ff0000) >> 16) & 0xff);
-    output(((num & 0x0000FF00) >> 8) & 0xff);
-    output(num & 0xff);
+    if (endian == BIG_ENDIAN)
+    {
+      output(((num & 0xff000000) >> 24) & 0xff);
+      output(((num & 0x00ff0000) >> 16) & 0xff);
+      output(((num & 0x0000FF00) >> 8) & 0xff);
+      output(num & 0xff);
+    }
+    else
+    {
+      output(num & 0xff);
+      output(((num & 0x0000FF00) >> 8) & 0xff);
+      output(((num & 0x00ff0000) >> 16) & 0xff);
+      output(((num & 0xff000000) >> 24) & 0xff);
+    }
     args = trim(args);
     if (*args == ',')
     {
@@ -2201,6 +2229,18 @@ void Asm(char *line)
     {
       suppression = -1;
     }
+    else if (strncasecmp(line, ".endian=big", 11) == 0)
+    {
+      endian = BIG_ENDIAN;
+    }
+    else if (strncasecmp(line, ".endian=little", 14) == 0)
+    {
+      endian = LITTLE_ENDIAN;
+    }
+    else if (strncasecmp(line, ".endian=default", 15) == 0)
+    {
+      endian = defaultEndian;
+    }
     else
     {
       label[0] = *line++;
@@ -2872,6 +2912,8 @@ void processROM(char *buffer)
 #define MCHIP_ARG 0x8A
 #define MINI_ARG  0x8B
 #define MAX_ARG   0x8C
+#define BE_ARG    0x8D
+#define LE_ARG    0x8E
 
 void help()
 {
@@ -2900,6 +2942,8 @@ void help()
           "-ram=low-high - Set explicit RAM region\n"
           "-rom=how-high - Set explicit ROM region\n"
           "-C, -case     - Treat labels as case sensitive\n"
+          "-be           - Set default byte order to big-endian\n"
+          "-le           - Set default byte order to little-endian\n"
           "-v,-version   - Display version information\n"
           "-h,-help      - This message\n");
 }
@@ -2942,6 +2986,8 @@ struct option long_opts[] =
   { "case", no_argument, &labelCase, -1 },
   { "q", no_argument, &quiet, -1},
   { "quiet", no_argument, &quiet, -1},
+  { "be", no_argument, 0, BE_ARG },
+  { "le", no_argument, 0, LE_ARG },
   { 0, 0, 0, 0 }
 };
 
@@ -3044,6 +3090,12 @@ void processOption(int c, int index, char *option)
     romStart = 0xf000;
     romEnd = 0xffff;
     break;
+  case LE_ARG:
+    defaultEndian = LITTLE_ENDIAN;
+    break;
+  case BE_ARG:
+    defaultEndian = BIG_ENDIAN;
+    break;
   }
 }
 
@@ -3063,6 +3115,7 @@ int pass(int p, char* srcFile)
   highAddress = 0x0000;
   strcpy(module, "*");
   fileNumber = 0;
+  endian = defaultEndian;
   sourceFile[0] = fopen(srcFile, "r");
   if (sourceFile[0] == NULL)
   {
@@ -3338,6 +3391,7 @@ int main(int argc, char **argv)
   numIncPath = 0;
   showIncPath = false;
   quiet = false;
+  defaultEndian = BIG_ENDIAN;
   strcpy(lineEnding, "\n");
   tv = time(NULL);
   localtime_r(&tv, &dt);
@@ -3400,7 +3454,7 @@ int main(int argc, char **argv)
     memory = NULL;
 
   for (i=0; i<numSourceFiles; i++)
-         assembleFile(sourceFiles[i]);
+    assembleFile(sourceFiles[i]);
 
   if (errors > 0)
     return 1;
