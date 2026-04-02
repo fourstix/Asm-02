@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include "mmap.h"
@@ -185,7 +186,6 @@ LINK word    address;
 LINK int     asmFile;
 LINK char    asmName[64];
 LINK char    baseName[64];
-LINK char    buffer[2048];
 LINK int     buildMonth;
 LINK int     buildDay;
 LINK int     buildYear;
@@ -206,7 +206,6 @@ LINK int     numIncPath;
 LINK int     inProc;
 LINK char    lineEnding[3];
 LINK int     linesAssembled;
-LINK char    listLine[256];
 LINK word    lowAddress;
 LINK FILE   *lstFile;
 LINK char    lstName[64];

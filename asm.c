@@ -13,6 +13,8 @@
 
 #define NAME_AND_VERSION  "Asm/02 v1.2"
 
+#define MAX_LINE_LEN      256
+#define LIST_CODE_LEN     26
 typedef struct
 {
   char opcode[8];
@@ -211,7 +213,8 @@ OPCODE opcodes[] = {
     {"", 0, 0 }
 };
 
-char sourceLine[1024];
+char sourceLine[MAX_LINE_LEN+1];
+char listLine[LIST_CODE_LEN+MAX_LINE_LEN+1];
 word lstCount;
 
 char *strdup(const char *s)
@@ -345,7 +348,9 @@ static const char *emessages[] = {
 #define MISSING_DEFINED_PAREN         (ERROR | 31)
     "Missing ')' after \"defined\"",
 #define DEFINED_REQUIRES_ID           (ERROR | 32)
-    "Operator \"defined\" requires an identifier"
+    "Operator \"defined\" requires an identifier",
+#define LINE_TOO_LONG                 (ERROR | 33)
+    "Line too long"
 };
 
 static const char *wmessages[] = {
@@ -1414,6 +1419,7 @@ void processDf(char *args)
 
 void processDs(word arg)
 {
+  char buffer[256];
   address += arg;
   if (passNumber == 2 && outCount > 0)
   {
@@ -1792,21 +1798,47 @@ char *nextLine(char *line)
   char buffer[1024];
   char path[2048];
   int pos;
+  size_t len;
   Define *define;
   word value;
   dword dvalue;
   int i;
+  int c;
+  bool tooLong;
+
   flag = -1;
 
   while (flag)
   {
-    ret = fgets(line, 1024, sourceFile[fileNumber]);
+    ret = fgets(line, MAX_LINE_LEN+1, sourceFile[fileNumber]);
     if (ret != NULL)
     {
-      while (strlen(ret) > 0 && line[strlen(ret) - 1] <= ' ')
-        line[strlen(ret) - 1] = 0;
+      len = strlen(ret);
+
+      if (len > 0 && ret[len-1] == '\n')
+      {
+        tooLong = false;
+
+        // Strip the newline from the end
+        while (len > 0 && iscntrl((unsigned char)ret[len - 1]))
+        {
+          len--;
+        }
+        // Place the new null terminator to "cut" the string
+        ret[len] = '\0';
+      }
+      else
+      {
+        // No newline means the line was longer than the maximum
+        tooLong = true;
+
+        // Clear the remaining characters from the input stream
+        while ((c = fgetc(sourceFile[fileNumber])) != '\n' && c != EOF);
+      }
       strcpy(sourceLine, line);
       lineNumber[fileNumber]++;
+      if (tooLong)
+        doError(LINE_TOO_LONG);
       flag = 0;
       ret = trim(ret);
       if (*ret == '#')
@@ -3101,8 +3133,7 @@ void processOption(int c, int index, char *option)
 
 int pass(int p, char* srcFile)
 {
-  int i;
-  char buffer[256];
+  char buffer[MAX_LINE_LEN+1];
   suppression = 0;
   passNumber = p;
   address = 0;
@@ -3145,9 +3176,6 @@ int pass(int p, char* srcFile)
   nests[0] = 'Y';
   while (nextLine(buffer) != NULL)
   {
-    for (i = 0; i < strlen(buffer); i++)
-      if (buffer[i] < 32 && buffer[i] != '\t')
-        buffer[i] = 0;
     Asm(buffer);
   }
   fclose(sourceFile[0]);
@@ -3245,6 +3273,7 @@ void assembleFile(char *sourceFile)
 {
   int i;
   char tmp[1024];
+  char buffer[32];
   FILE *buildFile;
   inProc = 0;
   defines = NULL;
