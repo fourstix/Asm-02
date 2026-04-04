@@ -91,6 +91,9 @@ $F7
 * .sym         - Show symbols
 * .link line   - Pass 'line' to linker
 * .suppress    - Suppress further byte output
+* .endian=big     - Set byte order to big-endian
+* .endian=little  - Set byte order to little-endian
+* .endian=default - Set byte order to default
 * .op "opcode","arglist","translation" (see examples, below)
 
 ### Arglist:
@@ -138,6 +141,8 @@ $F7
 * -lfcr         - Use LFCR as line ending
 * -version, -v  - Display the version number
 * -C, -case     - Treat labels as case sensitive
+* -be           - Set default byte order to big-endian
+* -le           - Set default byte order to little-endian
 * -help, -h     - List of options
 
 ## Evaluator variables
