@@ -13,6 +13,8 @@
 
 #define NAME_AND_VERSION  "Asm/02 v1.2"
 
+#define MAX_LINE_LEN      256
+#define LIST_CODE_LEN     26
 typedef struct
 {
   char opcode[8];
@@ -211,7 +213,8 @@ OPCODE opcodes[] = {
     {"", 0, 0 }
 };
 
-char sourceLine[1024];
+char sourceLine[MAX_LINE_LEN+1];
+char listLine[LIST_CODE_LEN+MAX_LINE_LEN+1];
 word lstCount;
 
 char *strdup(const char *s)
@@ -345,7 +348,9 @@ static const char *emessages[] = {
 #define MISSING_DEFINED_PAREN         (ERROR | 31)
     "Missing ')' after \"defined\"",
 #define DEFINED_REQUIRES_ID           (ERROR | 32)
-    "Operator \"defined\" requires an identifier"
+    "Operator \"defined\" requires an identifier",
+#define LINE_TOO_LONG                 (ERROR | 33)
+    "Line too long"
 };
 
 static const char *wmessages[] = {
@@ -412,11 +417,28 @@ void doError(int msgno, ...)
   }
 }
 
-char *trim(char *line)
+char *ltrim(char *line)
 {
   while (*line == ' ' || *line == '\t')
     line++;
   return line;
+}
+
+void rtrim(char *str) {
+    if (str == NULL || *str == '\0') {
+        return;
+    }
+
+    int len = strlen(str);
+    char *end = str + len - 1;
+
+    // Move backward while current character is a whitespace
+    while (end >= str && isspace((unsigned char)*end)) {
+        end--;
+    }
+
+    // Place the new null terminator
+    *(end + 1) = '\0';
 }
 
 char *strip(char *line)
@@ -1016,7 +1038,7 @@ char *evaluate(char *pos, dword *result)
 
       if (*pos != 0)
         pos++;
-      pos = trim(pos);
+      pos = ltrim(pos);
     }
     flag = -1;
     while (flag)
@@ -1240,7 +1262,7 @@ char *evaluate(char *pos, dword *result)
         pos++;
         while (*pos == ' ')
           pos++;
-        pos = trim(pos);
+        pos = ltrim(pos);
       }
     }
   }
@@ -1269,7 +1291,7 @@ void processDb(char *args, char typ)
 {
   dword num;
   char buffer[256];
-  args = trim(args);
+  args = ltrim(args);
   while (*args != 0)
   {
     if (*args == '\'' && *(args + 2) != '\'')
@@ -1363,11 +1385,11 @@ void processDb(char *args, char typ)
         }
       }
     }
-    args = trim(args);
+    args = ltrim(args);
     if (*args == ',')
     {
       args++;
-      args = trim(args);
+      args = ltrim(args);
     }
   }
 }
@@ -1378,7 +1400,7 @@ void processDf(char *args)
   char buffer[256];
   int pos;
   FTOI ftoi;
-  args = trim(args);
+  args = ltrim(args);
   while (*args != 0)
   {
     pos = 0;
@@ -1403,17 +1425,18 @@ void processDf(char *args)
       output(((num & 0x00ff0000) >> 16) & 0xff);
       output(((num & 0xff000000) >> 24) & 0xff);
     }
-    args = trim(args);
+    args = ltrim(args);
     if (*args == ',')
     {
       args++;
-      args = trim(args);
+      args = ltrim(args);
     }
   }
 }
 
 void processDs(word arg)
 {
+  char buffer[256];
   address += arg;
   if (passNumber == 2 && outCount > 0)
   {
@@ -1446,14 +1469,14 @@ void compileOp(char *line)
   char *oline;
   int pos;
   oline = line;
-  line = trim(line);
+  line = ltrim(line);
   if (*line != '"')
   {
     doError(ERR_INVALID_OP_FORMAT, oline);
     exit(1);
   }
   line++;
-  line = trim(line);
+  line = ltrim(line);
   pos = 0;
   while (*line != '"' && *line != 0)
   {
@@ -1477,14 +1500,14 @@ void compileOp(char *line)
     exit(1);
   }
   line++;
-  line = trim(line);
+  line = ltrim(line);
   if (*line != ',')
   {
     doError(ERR_INVALID_OP_FORMAT, oline);
     exit(1);
   }
   line++;
-  line = trim(line);
+  line = ltrim(line);
   if (*line != '"')
   {
     doError(ERR_INVALID_OP_FORMAT, oline);
@@ -1506,14 +1529,14 @@ void compileOp(char *line)
     exit(1);
   }
   line++;
-  line = trim(line);
+  line = ltrim(line);
   if (*line != ',')
   {
     doError(ERR_INVALID_OP_FORMAT, oline);
     exit(1);
   }
   line++;
-  line = trim(line);
+  line = ltrim(line);
   if (*line != '"')
   {
     doError(ERR_INVALID_OP_FORMAT, oline);
@@ -1792,23 +1815,49 @@ char *nextLine(char *line)
   char buffer[1024];
   char path[2048];
   int pos;
+  size_t len;
   Define *define;
   word value;
   dword dvalue;
   int i;
+  int c;
+  bool tooLong;
+
   flag = -1;
 
   while (flag)
   {
-    ret = fgets(line, 1024, sourceFile[fileNumber]);
+    ret = fgets(line, MAX_LINE_LEN+1, sourceFile[fileNumber]);
     if (ret != NULL)
     {
-      while (strlen(ret) > 0 && line[strlen(ret) - 1] <= ' ')
-        line[strlen(ret) - 1] = 0;
+      len = strlen(ret);
+
+      if (len > 0 && ret[len-1] == '\n')
+      {
+        tooLong = false;
+
+        // Strip the newline from the end
+        while (len > 0 && iscntrl((unsigned char)ret[len - 1]))
+        {
+          len--;
+        }
+        // Place the new null terminator to "cut" the string
+        ret[len] = '\0';
+      }
+      else
+      {
+        // No newline means the line was longer than the maximum
+        tooLong = true;
+
+        // Clear the remaining characters from the input stream
+        while ((c = fgetc(sourceFile[fileNumber])) != '\n' && c != EOF);
+      }
       strcpy(sourceLine, line);
       lineNumber[fileNumber]++;
+      if (tooLong)
+        doError(LINE_TOO_LONG);
       flag = 0;
-      ret = trim(ret);
+      ret = ltrim(ret);
       if (*ret == '#')
       {
         if (nests[numNests] == 'Y')
@@ -1869,14 +1918,14 @@ char *nextLine(char *line)
           if (strncasecmp(ret, "#error", 6) == 0)
           {
             ret += 6;
-            ret = trim(ret);
+            ret = ltrim(ret);
             doError(ERR_PREPROC_ERROR, ret); // #error
           }
 
           if (strncasecmp(ret, "#undef", 6) == 0)
           {
             ret += 6;
-            ret = trim(ret);
+            ret = ltrim(ret);
             delDefine(ret);
           }
         }
@@ -2005,12 +2054,11 @@ char *nextLine(char *line)
         if (nests[numNests] == 'Y')
         {
           if (fileNumber == 0)
-            sprintf(listLine, "[%05d] ", lineNumber[fileNumber]);
+            sprintf(listLine, "[%05d]%*s", lineNumber[fileNumber],
+              LIST_CODE_LEN - 7, "");
           else
-            sprintf(listLine, "<%05d> ", lineNumber[fileNumber]);
-          while (strlen(listLine) < 24)
-            strcat(listLine, " ");
-          strcat(listLine, "  ");
+            sprintf(listLine, "<%05d>%*s", lineNumber[fileNumber],
+              LIST_CODE_LEN - 7, "");
           strcat(listLine, sourceLine);
           if (passNumber == 2)
           {
@@ -2085,7 +2133,7 @@ void Asm(char *line)
   char lst[1500];
   usedReference = -1;
   orig = sourceLine;
-  line = trim(line);
+  line = ltrim(line);
   if (*line == '.')
   {
     sprintf(lst, "                  %s\n", orig);
@@ -2097,7 +2145,7 @@ void Asm(char *line)
         writeOutput();
       outCount = 0;
       line += 7;
-      line = trim(line);
+      line = ltrim(line);
       if (strncasecmp(line, "word", 4) == 0)
         address = (address + 1) & 0xfffe;
       if (strncasecmp(line, "dword", 5) == 0)
@@ -2285,7 +2333,7 @@ void Asm(char *line)
       line++;
   }
 
-  line = trim(line);
+  line = ltrim(line);
   if (*line == '#')
   {
     doError(ERR_PREPROC_FIRST);
@@ -2306,7 +2354,7 @@ void Asm(char *line)
     }
     opcode[pos] = 0;
   }
-  line = trim(line);
+  line = ltrim(line);
   pos = 0;
   qt = 0;
   while (((qt == 0 && *line != ';') || qt) && *line != 0)
@@ -2360,7 +2408,7 @@ void Asm(char *line)
         pos = i;
       i++;
     }
-    opline = trim(args);
+    opline = ltrim(args);
     if (pos < 0 && numOps > 0)
     {
       opcount = 0;
@@ -2375,7 +2423,7 @@ void Asm(char *line)
           operandsEType[opcount - 1] = referenceType;
           operandsERef[opcount - 1] = usedReference;
         }
-        opline = trim(opline);
+        opline = ltrim(opline);
         if (*opline != 0 && *opline != ',')
         {
           doError(ERR_INVALID_OPERANDS, orig);
@@ -2383,7 +2431,7 @@ void Asm(char *line)
         }
         if (*opline == ',')
           opline++;
-        opline = trim(opline);
+        opline = ltrim(opline);
       }
       for (i = 0; i < numOps; i++)
         if (strcasecmp(opcode, ops[i]) == 0 && strlen(arglist[i]) == opcount)
@@ -2416,8 +2464,7 @@ void Asm(char *line)
       return;
     }
     linesAssembled++;
-    while (*args != 0 && args[strlen(args) - 1] <= ' ')
-      args[strlen(args) - 1] = 0;
+    rtrim(args);
     if (macro >= 0)
     {
       b = 0;
@@ -2689,11 +2736,11 @@ void Asm(char *line)
         output(0x68);
         pargs = evaluate(args, &value);
         output(opcodes[pos].byte1 | (value & 0xf));
-        pargs = trim(pargs);
+        pargs = ltrim(pargs);
         if (*pargs == ',')
         {
           pargs++;
-          pargs = trim(pargs);
+          pargs = ltrim(pargs);
           pargs = evaluate(pargs, &value);
           output((value & 0xff00) >> 8);
           output(value & 0xff);
@@ -3101,8 +3148,7 @@ void processOption(int c, int index, char *option)
 
 int pass(int p, char* srcFile)
 {
-  int i;
-  char buffer[256];
+  char buffer[MAX_LINE_LEN+1];
   suppression = 0;
   passNumber = p;
   address = 0;
@@ -3145,9 +3191,6 @@ int pass(int p, char* srcFile)
   nests[0] = 'Y';
   while (nextLine(buffer) != NULL)
   {
-    for (i = 0; i < strlen(buffer); i++)
-      if (buffer[i] < 32 && buffer[i] != '\t')
-        buffer[i] = 0;
     Asm(buffer);
   }
   fclose(sourceFile[0]);
@@ -3245,7 +3288,9 @@ void assembleFile(char *sourceFile)
 {
   int i;
   char tmp[1024];
+  char buffer[32];
   FILE *buildFile;
+  char *p;
   inProc = 0;
   defines = NULL;
   numDefines = 0;
@@ -3259,9 +3304,11 @@ void assembleFile(char *sourceFile)
   codeGenerated = 0;
   clear();
   strcpy(baseName, sourceFile);
-  for (i = 0; i < strlen(baseName); i++)
-    if (baseName[i] == '.')
-      baseName[i] = 0;
+  p = strchr(baseName, '.');
+  if (p != NULL)
+  {
+    *p = '\0';
+  }
   strcpy(outName, baseName);
   switch (outMode)
   {
