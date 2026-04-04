@@ -15,6 +15,7 @@
 
 #define MAX_LINE_LEN      256
 #define LIST_CODE_LEN     26
+
 typedef struct
 {
   char opcode[8];
