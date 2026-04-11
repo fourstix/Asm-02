@@ -9,7 +9,7 @@ OBJS = \
 	asm.obj ya_getopt.obj mmap.obj
 
 $(PROJECT): $(OBJS)
-	$(CC) $(DEFS) $(LIBDIR) $(OBJS) $(LIBS) -o $(PROJECT)
+	$(CC) $(DEFS) $(LIBDIR) $(OBJS) $(LIBS) /Fe:$(PROJECT).exe
 
 .c.obj:
 	$(CC) $(DEFS) $(INCDIR) $(INCS) -c $<
