@@ -11,7 +11,7 @@
 
 #include "header.h"
 
-#define NAME_AND_VERSION  "Asm/02 v1.2"
+#define NAME_AND_VERSION  "Asm/02 v1.3"
 
 #define MAX_LINE_LEN      256
 #define LIST_CODE_LEN     26
