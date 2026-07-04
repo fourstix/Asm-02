@@ -11,7 +11,7 @@
 
 #include "header.h"
 
-#define NAME_AND_VERSION  "Asm/02 v1.3"
+#define NAME_AND_VERSION  "Asm/02 v1.4"
 
 #define MAX_LINE_LEN      256
 #define LIST_CODE_LEN     26
@@ -351,7 +351,9 @@ static const char *emessages[] = {
 #define DEFINED_REQUIRES_ID           (ERROR | 32)
     "Operator \"defined\" requires an identifier",
 #define LINE_TOO_LONG                 (ERROR | 33)
-    "Line too long"
+    "Line too long",
+#define ERR_NESTED_PROC               (ERROR | 34)
+    "PROC cannot be nested"
 };
 
 static const char *wmessages[] = {
@@ -1021,7 +1023,7 @@ char *evaluate(char *pos, dword *result)
                 referenceType = 'W';
                 referenceLowOffset = labelValues[i] & 0xff;
               }
-              else if (inProc != 0 && labelcmp(labelProcs[i], module) == 0)
+              else if (inProc && labelcmp(labelProcs[i], module) == 0)
               {
                 usedLocal = 1;
                 referenceType = 'W';
@@ -2681,7 +2683,7 @@ void Asm(char *line)
         processDs(processArgs(args));
         break;
       case OT_ORG:
-        if (inProc == 0)
+        if (!inProc)
         {
           value = processArgs(args);
           processOrg(value);
@@ -2790,6 +2792,10 @@ void Asm(char *line)
         }
         break;
       case OT_PROC:
+        if (inProc)
+        {
+          doError(ERR_NESTED_PROC);
+        }
         inProc = -1;
         setCompMode();
         strcpy(module, args);
@@ -2812,7 +2818,7 @@ void Asm(char *line)
         numFixups = 0;
         break;
       case OT_ENDP:
-        if (inProc == 0)
+        if (!inProc)
         {
           doError(ERR_ENDP_OUTSIDE_PROC);
         }
