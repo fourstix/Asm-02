@@ -11,7 +11,7 @@
 
 #include "header.h"
 
-#define NAME_AND_VERSION  "Asm/02 v1.4"
+#define NAME_AND_VERSION  "Asm/02 v1.5"
 
 #define MAX_LINE_LEN      256
 #define LIST_CODE_LEN     26
@@ -2698,17 +2698,28 @@ void Asm(char *line)
         setLabel(label, value);
         break;
       case OT_LBR:
+        /* Branch-relaxation support: OT_LBR is used exclusively by the
+         * long-branch family (lbr/lbq/lbz/lbdf/lbnq/lbnz/lbnf), never
+         * by db/dw/ds or any other word-emitting directive, so it is
+         * safe to tag this specific case's fixups with a distinct
+         * marker ('!' external, 'B'/'#' local) instead of the generic
+         * '?'/'W'('+') markers shared with plain data words. A
+         * consumer (e.g. link02's optional short-branch relaxation
+         * pass) can then tell "this 2-byte field is a branch target,
+         * the opcode byte immediately precedes it" from "this is just
+         * a pointer-sized data value" -- the two are otherwise
+         * byte-for-byte indistinguishable in the .prg format. */
         value = processArgs(args);
         output(opcodes[pos].byte1);
         if (passNumber == 2 && usedReference >= 0)
         {
-          sprintf(buffer, "?%s %04x\n", labels[usedReference], address);
+          sprintf(buffer, "!%s %04x\n", labels[usedReference], address);
           write(outFile, buffer, strlen(buffer));
         }
         if (passNumber == 2 && usedLocal >= 0)
         {
           fixups[numFixups] = address;
-          fixupTypes[numFixups] = referenceType;
+          fixupTypes[numFixups] = 'B';
           numFixups++;
         }
         output(value / 256);
@@ -2845,6 +2856,8 @@ void Asm(char *line)
               sprintf(buffer, "v%04x\n", fixups[i]);
             if (fixupTypes[i] == 'T')
               sprintf(buffer, "<%04x\n", fixups[i]);
+            if (fixupTypes[i] == 'B')
+              sprintf(buffer, "#%04x\n", fixups[i]);
             write(outFile, buffer, strlen(buffer));
           }
           sprintf(buffer, "}\n");
