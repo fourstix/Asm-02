@@ -11,7 +11,7 @@
 
 #include "header.h"
 
-#define NAME_AND_VERSION  "Asm/02 v1.5"
+#define NAME_AND_VERSION  "Asm/02 v1.6"
 
 #define MAX_LINE_LEN      256
 #define LIST_CODE_LEN     26
@@ -1017,9 +1017,18 @@ char *evaluate(char *pos, dword *result)
             i = findLabel(token);
             if (i >= 0)
             {
-              usedReference = isExternal(i);
-              if (usedReference >= 0)
+              int ext = isExternal(i);
+              /* Only touch usedReference when THIS token is itself a
+               * reference. A plain (non-external, non-local) label --
+               * e.g. an ordinary "equ" constant used as a struct-field
+               * offset in "symbol+FIELD_OFFSET" -- must not clobber a
+               * reference already recorded for an earlier operand in
+               * the same expression; doing so silently drops the
+               * earlier symbol's relocation, emitting only the bare
+               * constant with no fixup at all. */
+              if (ext >= 0)
               {
+                usedReference = ext;
                 referenceType = 'W';
                 referenceLowOffset = labelValues[i] & 0xff;
               }

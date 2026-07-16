@@ -63,6 +63,9 @@ $12
 $F7
 ```
 * You can't use ORG to specify an absolute address within a PROC/ENDPROC.
+* `mov reg, symbol+N`-style compound expressions (a relocatable label plus/minus a constant, used directly as an instruction operand) resolve correctly, including `N` written as a named `equ` constant rather than a bare numeral (`symbol+FIELD_OFFSET`, and chains like `symbol+FIELD_A+FIELD_B`), and including offsets that cross a byte boundary and need carry propagation into the address's high byte — confirmed by isolated testing against real relocatable (cross-file, link-time-resolved) labels, not just absolute `equ` constants.
+* **Fixed in v1.6 (2026-07-15): `mov reg, symbol+NAME`, where `NAME` is itself a named `equ` constant, used to silently drop `symbol`'s own relocation and resolve to just `NAME`'s value — found via direct byte-decode of a real build that hit this in practice (a struct-field-offset idiom, `mov rf, some_struct+FIELD_OFFSET`, is about as common as this gets).** Cause: evaluating a `+` expression parses each operand through the same identifier-token path, and *every* label token — not just the first — unconditionally overwrote the evaluator's internal "this expression references an external/relocatable symbol" tracking based on whether *that* token was itself external. So `symbol+NAME` recorded a valid reference while parsing `symbol`, then immediately lost it while parsing `NAME` (a plain, non-relocatable `equ` label isn't a reference itself, so the tracking got reset to "no reference" even though `symbol` genuinely was one) — the instruction silently emitted with no relocation fixup at all, just `NAME`'s bare numeric value, no warning or error at any point. A bare-numeral offset never hit this (numbers are parsed by a separate code path that doesn't touch this tracking), which is why isolated testing of `symbol+300`-style cases alone didn't catch it. Fix: the tracking is now only updated when the *current* token is itself a genuine reference, so a later plain-constant token can no longer clobber one recorded earlier in the same expression. `high`/`low`/`.` applied to a `symbol+NAME` expression share the same fix (they depend on the same tracking).
+* **`equ alias: equ relocatable_label+CONST` remains broken, for a different reason — NOT fixed by the above** — `equ`'s handler (`OT_EQU` in `asm.c`) just evaluates the expression and calls `setLabel()`, with no participation in the reference/fixup mechanism at all (so even a bare-numeral offset doesn't save it here, unlike the `mov` case above, which was always fine with a numeral). The result silently resolves to an unrelated, wrong link-time value with no assembler warning or error — confirmed via an isolated test (`alias0: equ real_block`, `alias1: equ real_block+1`, `alias5: equ real_block+5`, where `real_block` is a genuine `ds`-declared label inside a `proc`): all three aliases collapsed to the *same* wrong address regardless of the offset used, instead of `real_block+0/1/5`. Only alias an absolute constant this way (`equ`-ing another `equ`-defined literal, or a fixed `org`-style address) — never a `ds`/`dw`/`db` label that lives inside a `proc`.
 
 ## Directives
 
@@ -122,6 +125,7 @@ $F7
 * -Ipath        - Add path to search list for #include files
 * -l, -showlist - Show assembly list
 * -L, -list     - Create .lst file
+* -q, -quiet    - Show minimal output
 * -s, -symbols  - Show symbols
 * -m, -map      - Show memory map in binary/hex mode
 * -melf         - Set Micro/Elf memory model
@@ -182,7 +186,21 @@ $F7
 * ver           - Build standard Elf/OS VER header
 * ever          - Build extended Elf/OS VER header
 * eever         - Build enhanced Elf/OS VER header
-  
+* end expr      - Set the program's exec/start address (recorded in the output header; has no effect on assembly itself)
+
+## Expressions
+
+Expression evaluation is available anywhere a numeric value is expected (instruction operands, `equ`, `db`/`dw`/`ds` arguments, `#if`, etc. — including the `[month]`/`[day]`/... build-time variables listed above). Standard C-like precedence applies (unary operators and `abs()`/`sgn()`/`high`/`low` bind tightest, then `* / %`, then `+ -`, then `<< >>`, then `& | ^`, then the comparisons, then `&& ||`).
+
+* Binary arithmetic: `+` `-` `*` `/` `%` (modulo)
+* Binary bitwise: `&` (and) `|` (or) `^` (xor) `<<` (shift left) `>>` (shift right)
+* Binary comparison: `==` (or bare `=`) `!=` `<` `>` `<=` `>=`
+* Binary logical: `&&` `||`
+* `expr . bit` — byte-select: if `bit`'s low bit is 1, take `expr`'s high byte; if 0, take its low byte (an older/alternate spelling of `high`/`low` below)
+* Unary prefix: `!expr` (logical/bitwise not), `high expr` (high byte), `low expr` (low byte), `abs(expr)`, `sgn(expr)` (-1/0/1)
+* `high`/`low` (and the `.` byte-select operator above) correctly extract a symbol's high/low byte at assemble time even for a relocatable, link-time-resolved label — including across a byte-boundary-crossing offset, e.g. `high (some_label+300)`.
+* `relocatable_symbol + N` resolves correctly as of v1.6 whether `N` is a bare numeral or a named `equ` constant — see the "Special Features and Usage Notes" section above for the fix history and the one still-open, unrelated `equ`-aliasing limitation.
+
 ## Sample opcode macros
 ```
 .op "PUSH","N","9$1 73 8$1 73"
