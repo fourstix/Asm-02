@@ -2289,6 +2289,25 @@ void Asm(char *line)
     {
       suppression = -1;
     }
+    else if (strncasecmp(line, ".norelax", 8) == 0)
+    {
+      /* Long branches (OT_LBR) assembled while this is in effect emit
+       * the generic '?'/'W'('+') fixup markers instead of the usual
+       * relax-aware '!'/'B'('#') ones -- identical to an ordinary word
+       * reference. link02's -r pass only ever shrinks '#'-marked
+       * local branches, so this is a complete, clean opt-out for a
+       * section of code that must not have its branches relaxed
+       * (fixed timing, a hand-placed short branch nearby that assumes
+       * stable addresses, etc.) with no separate exclusion list needed
+       * on the link02 side. Scoped like .suppress -- resets to off at
+       * the start of every pass, so it only affects code textually
+       * between a .norelax and the next .relax (or end of file). */
+      noRelax = -1;
+    }
+    else if (strncasecmp(line, ".relax", 6) == 0)
+    {
+      noRelax = 0;
+    }
     else if (strncasecmp(line, ".endian=big", 11) == 0)
     {
       endian = BIG_ENDIAN;
@@ -2717,18 +2736,25 @@ void Asm(char *line)
          * pass) can then tell "this 2-byte field is a branch target,
          * the opcode byte immediately precedes it" from "this is just
          * a pointer-sized data value" -- the two are otherwise
-         * byte-for-byte indistinguishable in the .prg format. */
+         * byte-for-byte indistinguishable in the .prg format.
+         *
+         * .norelax (see its own directive comment above) makes this
+         * fall back to the generic '?'/'W' markers on purpose, for a
+         * section of code whose long branches must not be shrunk. */
         value = processArgs(args);
         output(opcodes[pos].byte1);
         if (passNumber == 2 && usedReference >= 0)
         {
-          sprintf(buffer, "!%s %04x\n", labels[usedReference], address);
+          if (noRelax)
+            sprintf(buffer, "?%s %04x\n", labels[usedReference], address);
+          else
+            sprintf(buffer, "!%s %04x\n", labels[usedReference], address);
           write(outFile, buffer, strlen(buffer));
         }
         if (passNumber == 2 && usedLocal >= 0)
         {
           fixups[numFixups] = address;
-          fixupTypes[numFixups] = 'B';
+          fixupTypes[numFixups] = noRelax ? 'W' : 'B';
           numFixups++;
         }
         output(value / 256);
@@ -3179,6 +3205,7 @@ int pass(int p, char* srcFile)
 {
   char buffer[MAX_LINE_LEN+1];
   suppression = 0;
+  noRelax = 0;
   passNumber = p;
   address = 0;
   outCount = 0;

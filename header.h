@@ -225,6 +225,7 @@ LINK char    showAsm;
 LINK int     showList;
 LINK int     showSymbols;
 LINK char  **sourceFiles;
+LINK int     noRelax;
 LINK int     suppression;
 LINK int     numSourceFiles;
 LINK int     use1805;
