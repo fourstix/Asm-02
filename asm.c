@@ -2292,20 +2292,34 @@ void Asm(char *line)
     else if (strncasecmp(line, ".norelax", 8) == 0)
     {
       /* Long branches (OT_LBR) assembled while this is in effect emit
-       * the generic '?'/'W'('+') fixup markers instead of the usual
+       * the generic '?'/'W'('+') fixup markers instead of the
        * relax-aware '!'/'B'('#') ones -- identical to an ordinary word
-       * reference. link02's -r pass only ever shrinks '#'-marked
-       * local branches, so this is a complete, clean opt-out for a
-       * section of code that must not have its branches relaxed
-       * (fixed timing, a hand-placed short branch nearby that assumes
-       * stable addresses, etc.) with no separate exclusion list needed
-       * on the link02 side. Scoped like .suppress -- resets to off at
-       * the start of every pass, so it only affects code textually
-       * between a .norelax and the next .relax (or end of file). */
+       * reference. link02's -r pass only ever shrinks '#'-marked local
+       * branches, so this is a complete, clean opt-out for a section
+       * of code that must not have its branches relaxed (fixed
+       * timing, a hand-placed short branch nearby that assumes stable
+       * addresses, etc.) with no separate exclusion list needed on
+       * the link02 side. Without the command-line -r flag this is
+       * already the default for the whole file (see pass()'s own
+       * per-pass reset of noRelax from relaxFlag) -- .norelax is only
+       * needed to force old-style fixups for one section of a file
+       * assembled *with* -r. Scoped like .suppress -- resets to
+       * pass()'s own default at the start of every pass, so it only
+       * affects code textually between a .norelax and the next
+       * .relax (or end of file). */
       noRelax = -1;
     }
     else if (strncasecmp(line, ".relax", 6) == 0)
     {
+      /* Forces relax-aware ('!'/'#') fixups for one section even in a
+       * file assembled without the command-line -r flag (whose own
+       * default is old-style fixups everywhere -- see pass()'s reset
+       * of noRelax from relaxFlag). Real end-to-end branch shrinking
+       * still also needs link02's own -r; without it, '#'/'!' markers
+       * still resolve correctly (loadFile() handles them
+       * unconditionally) but nothing gets shrunk -- so .relax alone,
+       * with no -r anywhere, is a safe no-op, not a compatibility
+       * risk. */
       noRelax = 0;
     }
     else if (strncasecmp(line, ".endian=big", 11) == 0)
@@ -2738,9 +2752,16 @@ void Asm(char *line)
          * a pointer-sized data value" -- the two are otherwise
          * byte-for-byte indistinguishable in the .prg format.
          *
-         * .norelax (see its own directive comment above) makes this
-         * fall back to the generic '?'/'W' markers on purpose, for a
-         * section of code whose long branches must not be shrunk. */
+         * Which marker style actually gets emitted is controlled by
+         * noRelax (see pass()'s own per-pass reset from relaxFlag,
+         * and the .relax/.norelax directives above): without the
+         * command-line -r flag, every long branch in the file
+         * defaults to the old-style '?'/'W' markers below, so a
+         * build with no -r produces output byte-for-byte compatible
+         * with a pre-relaxation Asm/02 and any link02 that doesn't
+         * know about '#'/'!'. -r flips that default to the
+         * relax-aware markers; .relax/.norelax override either
+         * default for one section of the file. */
         value = processArgs(args);
         output(opcodes[pos].byte1);
         if (passNumber == 2 && usedReference >= 0)
@@ -3024,7 +3045,16 @@ void help()
           "-b,-binary    - Output in binary\n"
           "-Dname        - Define name with value of '1'\n"
           "-Dname=value  - Define name with specified value\n"
-          "-r,-reloc     - Output in RCS hex\n"
+          "-reloc        - Output in RCS hex (already the default)\n"
+          "-r            - Emit relax-aware ('!'/'#') long-branch fixups\n"
+          "                by default (see .relax/.norelax); without -r,\n"
+          "                long branches always emit the old-style\n"
+          "                ('?'/'+') fixups, byte-for-byte matching a\n"
+          "                pre-relaxation Asm/02 and safe for any link02\n"
+          "                that doesn't know about the newer markers.\n"
+          "                Pass the same -r to link02's own -r to get\n"
+          "                real branch shrinking; -r on only one of the\n"
+          "                two tools is a harmless no-op on the other.\n"
           "-i,-intel     - Output in Intel hex\n"
           "-Ipath        - Add path to search list for #include files\n"
           "-l,-showlist  - Show assembly list\n"
@@ -3058,7 +3088,7 @@ struct option long_opts[] =
   { "intel", no_argument, &outMode, 'I' },
   { "i", no_argument, &outMode, 'I' },
   { "reloc", no_argument, &outMode, 'R' },
-  { "r", no_argument, &outMode, 'R' },
+  { "r", no_argument, &relaxFlag, -1 },
   { "showlist", no_argument, &showList, -1 },
   { "l", no_argument, &showList, -1 },
   { "list", no_argument, &createLst, -1 },
@@ -3205,7 +3235,19 @@ int pass(int p, char* srcFile)
 {
   char buffer[MAX_LINE_LEN+1];
   suppression = 0;
-  noRelax = 0;
+  noRelax = relaxFlag ? 0 : -1;      /* -r on the command line: default
+                                       * to relax-aware ('!'/'#') fixups
+                                       * for OT_LBR, same as the -r-less
+                                       * behavior used to be
+                                       * unconditionally. No -r: default
+                                       * to the old-style ('?'/'+')
+                                       * fixups, byte-for-byte matching
+                                       * a pre-relaxation Asm/02, so an
+                                       * older link02 that doesn't know
+                                       * about '#'/'!' still works.
+                                       * .relax/.norelax in the source
+                                       * still override this per-section
+                                       * either way. */
   passNumber = p;
   address = 0;
   outCount = 0;
@@ -3480,6 +3522,7 @@ int main(int argc, char **argv)
   memovf = false;
   showList = 0;
   showSymbols = 0;
+  relaxFlag = 0;
   use1805 = 0;
   useExtended = 0;
   sourceFiles = NULL;

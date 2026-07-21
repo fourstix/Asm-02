@@ -94,6 +94,24 @@ $F7
 * .sym         - Show symbols
 * .link line   - Pass 'line' to linker
 * .suppress    - Suppress further byte output
+* .norelax     - Long branches (lbr/lbq/lbz/lbdf/lbnq/lbnz/lbnf) assembled
+                  from here on emit old-style fixups, exactly like a plain
+                  word reference -- a linker's short-branch relaxation pass
+                  (e.g. link02 -r) will never touch them. This is already
+                  the default for a whole file assembled without -r (see
+                  below); .norelax is for forcing it on one section of a
+                  file that otherwise has -r's relax-aware default. Resets
+                  to the file's own default at the start of every pass, so
+                  it only affects code between here and the next .relax
+                  (or end of file).
+* .relax       - Long branches assembled from here on emit relax-aware
+                  fixups, so a linker's -r pass can consider shrinking
+                  them. This is already the default for a whole file
+                  assembled with -r; .relax is for forcing it on one
+                  section of a file that otherwise has -r's own default
+                  turned off (i.e. no -r was passed at all). Safe even
+                  with no -r anywhere: the fixups still resolve correctly,
+                  just nothing gets shrunk.
 * .endian=big     - Set byte order to big-endian
 * .endian=little  - Set byte order to little-endian
 * .endian=default - Set byte order to default
@@ -120,7 +138,17 @@ $F7
 * -b, -binary   - Output in binary
 * -Dname        - Define name with value of "1"
 * -Dname=value  - Define name with specified value
-* -r, -reloc    - Output in RCS hex
+* -reloc        - Output in RCS hex (already the default)
+* -r            - Long branches emit relax-aware fixups by default (see
+                   .relax/.norelax above), so a linker's short-branch
+                   relaxation pass (e.g. link02 -r) can shrink them.
+                   Without -r, long branches always emit old-style
+                   fixups, byte-for-byte matching a pre-relaxation
+                   Asm/02 and safe for any linker that doesn't know
+                   about the newer marker format. Pass the same -r to
+                   both Asm/02 and link02 to get real branch shrinking;
+                   -r on only one of the two tools is a harmless no-op
+                   on the other.
 * -i, -intel    - Output in Intel hex
 * -Ipath        - Add path to search list for #include files
 * -l, -showlist - Show assembly list

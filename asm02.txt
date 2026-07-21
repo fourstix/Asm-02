@@ -23,6 +23,13 @@
 .sym            - Show symbols
 .link line      - Pass 'line' to linker
 .suppress       - Suppress further byte output
+.norelax        - Long branches emit old-style fixups from here on
+                  (already the default without -r; overrides -r's own
+                  default for one section). Resets every pass.
+.relax          - Long branches emit relax-aware fixups from here on
+                  (already the default with -r; overrides the no -r
+                  default for one section, harmlessly if no linker -r
+                  is used either). Resets every pass.
 .endian=big     - Set byte order to big-endian
 .endian=little  - Set byte order to little-endian
 .endian=default - Set byte order to default
@@ -46,7 +53,14 @@ Command line switches:
   -b, -binary   - Output in binary
   -Dname        - Define name with value of "1"
   -Dname=value  - Define name with specified value
-  -r, -reloc    - Output in RCS hex
+  -reloc        - Output in RCS hex (already the default)
+  -r            - Long branches emit relax-aware fixups by default (see
+                  .relax/.norelax); without -r, they always emit
+                  old-style fixups, matching a pre-relaxation Asm/02 and
+                  any linker that doesn't know the newer format. Pass
+                  the same -r to link02's own -r for real branch
+                  shrinking; -r on only one of the two tools is a
+                  harmless no-op on the other.
   -i, -intel    - Output in Intel hex
   -Ipath        - Add path to search list for #include files
   -l, -showlist - Show assembly list
