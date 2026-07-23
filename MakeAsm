@@ -1,22 +1,34 @@
-PROJECT = asm02
-CC = CL
-DEFS =
-INCS =
-INCDIR =
-LIBS =
-LIBDIR =
-OBJS = \
-	asm.obj ya_getopt.obj mmap.obj
+# Compiler and Flags
+CC = cl.exe
+LINK = link.exe
+CFLAGS = /nologo /EHsc /O2
+LFLAGS = /nologo
 
-$(PROJECT): $(OBJS)
-	$(CC) $(DEFS) $(LIBDIR) $(OBJS) $(LIBS) /Fe:$(PROJECT).exe
+# Target executable
+TARGET = asm02.exe
 
-.c.obj:
-	$(CC) $(DEFS) $(INCDIR) $(INCS) -c $<
+# Object files derived from sources
+OBJS = asm.obj ya_getopt.obj mmap.obj
 
+# Default target
+all: $(TARGET)
+
+# Linking the executable
+$(TARGET): $(OBJS)
+    $(LINK) $(LFLAGS) /OUT:$(TARGET) $(OBJS)
+
+# Compilation rule for asm.obj (depends on header.h)
+asm.obj: asm.c header.h
+    $(CC) $(CFLAGS) /c asm.c
+
+# Compilation rule for ya_getopt.obj (depends on ya_getopt.h)
+ya_getopt.obj: ya_getopt.c ya_getopt.h
+    $(CC) $(CFLAGS) /c ya_getopt.c
+
+# Compilation rule for mmap.obj (depends on mmap.h)
+mmap.obj: mmap.c mmap.h
+    $(CC) $(CFLAGS) /c mmap.c
+
+# Clean up build files
 clean:
-	del *.obj *.exe
-
-asm.obj:           header.h asm.c
-ya_getopt.obj:		 ya_getopt.h ya_getopt.c
-mmap.obj:					 mmap.h mmap.c
+    del /Q $(OBJS) $(TARGET) 2>NUL
