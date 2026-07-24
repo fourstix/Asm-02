@@ -162,6 +162,12 @@ LINK int     numClDefines;
 LINK char  **labels;
 LINK char  **labelProcs;
 LINK word   *labelValues;
+LINK int    *labelIsEqu; /* set on labels[i] defined via "equ" -- an equ
+                          * constant is a fixed, position-independent
+                          * value and must never be treated as a local
+                          * (proc-relative) reference needing a fixup;
+                          * see the setLabel()/usedLocal fix this
+                          * guards. */
 LINK char    module[128];
 LINK int     numLabels;
 LINK word    asmAddress;

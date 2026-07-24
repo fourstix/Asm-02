@@ -541,12 +541,19 @@ void addLabel(char *label, word value)
   labels = (char **)realloc(labels, sizeof(char *) * numLabels);
   labelValues = (word *)realloc(labelValues, sizeof(word) * numLabels);
   labelProcs = (char **)realloc(labelProcs, sizeof(char *) * numLabels);
+  labelIsEqu = (int *)realloc(labelIsEqu, sizeof(int) * numLabels);
 
   labels[numLabels - 1] = (char *)malloc(strlen(label) + 1);
   strcpy(labels[numLabels - 1], label);
   labelProcs[numLabels - 1] = (char *)malloc(strlen(module) + 1);
   strcpy(labelProcs[numLabels - 1], module);
   labelValues[numLabels - 1] = value;
+  /* Every labeled line calls addLabel() on pass 1 before its own
+   * opcode (equ or otherwise) is known -- see the call site in
+   * Asm(). A plain label defaults to "not an equ constant"; the
+   * OT_EQU case corrects this via setLabel() once it actually
+   * knows. */
+  labelIsEqu[numLabels - 1] = 0;
 }
 
 word getLabel(char *label)
@@ -625,6 +632,12 @@ void setLabel(char *label, word value)
     if (labelcmp(label, labels[i]) == 0)
     {
       labelValues[i] = value;
+      /* setLabel() is only ever called from the OT_EQU case -- every
+       * label reaching here is an equ constant, a fixed,
+       * position-independent value that must never be tagged as a
+       * local (proc-relative) reference. See the usedLocal fix below
+       * this depends on. */
+      labelIsEqu[i] = 1;
       return;
     }
   }
@@ -1032,8 +1045,28 @@ char *evaluate(char *pos, dword *result)
                 referenceType = 'W';
                 referenceLowOffset = labelValues[i] & 0xff;
               }
-              else if (inProc && labelcmp(labelProcs[i], module) == 0)
+              else if (inProc && labelcmp(labelProcs[i], module) == 0 &&
+                       !labelIsEqu[i])
               {
+                /* !labelIsEqu[i]: an equ constant is a fixed,
+                 * position-independent value -- even though it was
+                 * defined "inside" this proc (labelProcs[i] ==
+                 * module, since equ lines get tagged with whatever
+                 * proc they textually sit in just like any other
+                 * label), it must never be marked as a local
+                 * (proc-relative) reference needing a fixup. Before
+                 * this check, ANY same-proc equ constant referenced
+                 * in an expression got tagged 'usedLocal', causing
+                 * link02's local-fixup handler (which treats the
+                 * marked word as a real proc-relative target needing
+                 * the proc's own base address added in) to corrupt
+                 * that word and the byte immediately after it --
+                 * reproducible with or without link02's -r relaxation
+                 * flag, and independent of whether the equ was
+                 * declared before or after its own use; only masked
+                 * when the enclosing proc happened to link at address
+                 * 0. See ELF-DOS's own CLAUDE.md gotcha #19 for the
+                 * original real-world instance this was found from. */
                 usedLocal = 1;
                 referenceType = 'W';
                 referenceLowOffset = labelValues[i] & 0xff;
@@ -3342,6 +3375,8 @@ void freeLabels()
     labelValues = NULL;
     free(labelProcs);
     labelProcs = NULL;
+    free(labelIsEqu);
+    labelIsEqu = NULL;
 
     numLabels = 0;
   }
